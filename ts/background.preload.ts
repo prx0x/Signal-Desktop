@@ -92,11 +92,15 @@ import { conversationJobQueue } from './jobs/conversationJobQueue.preload.ts';
 import { ourProfileKeyService } from './services/ourProfileKey.std.ts';
 import { notificationService } from './services/notifications.preload.ts';
 import { areWeASubscriberService } from './services/areWeASubscriber.dom.ts';
+import { resetLocalTimeZone as intlDateResetLocalTimeZone } from '@internationalized/date';
 import {
   onContactSync,
   setIsInitialContactSync,
 } from './services/contactSync.preload.ts';
 import { startTimeTravelDetector } from './util/startTimeTravelDetector.std.ts';
+import { startTimeZoneChangeDetector } from './util/startTimeZoneChangeDetector.std.ts';
+import { clearDateTimeFormatterCache } from './util/formatTimestamp.dom.ts';
+import { triggerNowUpdate } from './hooks/useNowThatUpdatesEveryMinute.std.ts';
 import { LatestQueue } from './util/LatestQueue.std.ts';
 import { parseIntOrThrow } from './util/parseIntOrThrow.std.ts';
 import { getProfile } from './util/getProfile.preload.ts';
@@ -1611,6 +1615,14 @@ async function startApp(): Promise<void> {
 
     startTimeTravelDetector(() => {
       window.Whisper.events.emit('timetravel');
+    });
+
+    startTimeZoneChangeDetector(() => {
+      log.info('time zone changed');
+      clearDateTimeFormatterCache();
+      // React-aria components rely on @internationalized/date
+      intlDateResetLocalTimeZone();
+      triggerNowUpdate();
     });
 
     updateExpiringMessagesService();
