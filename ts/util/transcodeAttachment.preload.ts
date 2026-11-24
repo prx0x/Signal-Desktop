@@ -47,7 +47,10 @@ import {
 import { updateAttachment } from './editHelpers.std.ts';
 import { strictAssert } from './assert.std.ts';
 import { drop } from './drop.std.ts';
-import { isVideoTypeTranscodable } from './GoogleChrome.std.ts';
+import {
+  isVideoTypeTranscodable,
+  isVideoTypePlayable,
+} from './GoogleChrome.std.ts';
 import { prefixAndSliceStream } from './prefixAndSliceStream.std.ts';
 import { getTranscodingOptions } from './getTranscodingOptions.preload.ts';
 import { createUrlSource } from './urlSource.dom.ts';
@@ -315,7 +318,7 @@ export async function transcodeAttachment({
     let transcodingFields: TranscodingFieldsType | undefined;
     try {
       strictAssert(duration != null, 'Missing video duration');
-
+      const originalIsPlayable = isVideoTypePlayable(attachment.contentType);
       for (const targetQuality of qualityToTry) {
         log.info(`transcoding to ${targetQuality} quality`);
         // oxlint-disable-next-line no-await-in-loop
@@ -329,9 +332,12 @@ export async function transcodeAttachment({
           isAttachmentTooLarge({
             plaintextSize: transcodingFields.size,
             ciphertextLimit: sizeLimit,
-          })
+          }) ||
+          (originalIsPlayable && transcodingFields.size > attachment.size)
         ) {
-          log.warn(`transcoded file too large ${transcodingFields.size}`);
+          log.warn(
+            `discarding because transcoded file too large ${transcodingFields.size}, original: ${attachment.size}`
+          );
 
           // Delete the transcoded attachment after sanitization
           // oxlint-disable-next-line no-await-in-loop
